@@ -1,0 +1,74 @@
+import React, { useState, useEffect } from 'react';
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3001/api/espn";
+
+// Sports list
+const SPORTS = [
+  { id: 'nhl', label: 'NHL - Hockey' },
+  { id: 'nfl', label: 'NFL - Football' },
+  { id: 'mlb', label: 'MLB - Baseball' },
+  { id: 'f1', label: 'F1 - Racing' },
+  { id: 'soccer', label: 'Soccer' },
+  { id: 'golf', label: 'Golf' },
+  { id: 'pll', label: 'PLL - Lacrosse' },
+  { id: 'college-football', label: 'College Football' },
+  { id: 'college-hockey', label: 'College Hockey' },
+  { id: 'college-lacrosse', label: 'College Lacrosse' },
+  { id: 'college-baseball', label: 'College Baseball' },
+  { id: 'college-soccer', label: 'College Soccer' }
+];
+
+// Golf holes
+const HOLES = [
+  { number: 1, par: 3 },
+  { number: 2, par: 4 },
+  { number: 3, par: 3 },
+  { number: 4, par: 4 },
+  { number: 5, par: 4 },
+  { number: 6, par: 3 },
+  { number: 7, par: 4 },
+  { number: 8, par: 3 },
+  { number: 9, par: 5 },
+];
+
+// Components
+const SportButton = ({ sport, active, onClick }) => (
+  <button
+    onClick={() => onClick(sport.id)}
+    className={`px-3 py-1 rounded-md whitespace-nowrap mr-2 mb-2 text-sm border ${
+      active ? 'bg-slate-700 text-white' : 'bg-white text-slate-700'
+    }`}
+  >
+    {sport.label}
+  </button>
+);
+
+const SearchBar = ({ placeholder, value, onChange, onEnter }) => (
+  <input
+    value={value}
+    onChange={e => onChange(e.target.value)}
+    onKeyDown={e => { if (e.key === 'Enter') onEnter(); }}
+    placeholder={placeholder}
+    className="w-full md:w-1/3 p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-slate-300"
+  />
+);
+
+export default function App() {
+  // Golf
+  const [strokes, setStrokes] = useState(Array(HOLES.length).fill(0));
+  const totalStrokes = strokes.reduce((a,b) => a+b, 0);
+  const handleStrokeChange = (idx, value) => {
+    const newStrokes = [...strokes];
+    newStrokes[idx] = parseInt(value) || 0;
+    setStrokes(newStrokes);
+  };
+
+  // Sports
+  const [selectedSport, setSelectedSport] = useState('nhl');
+  const [teamQuery, setTeamQuery] = useState('');
+  const [playerQuery, setPlayerQuery] = useState('');
+  const [leagueQuery, setLeagueQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [schedule, setSchedule] = useState([]);
+  const [stats, setStats] = useState([]);
+ 
