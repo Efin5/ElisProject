@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
+// Backend proxy URL
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3001/api/espn";
 
 // Sports list
@@ -18,7 +19,7 @@ const SPORTS = [
   { id: 'college-soccer', label: 'College Soccer' }
 ];
 
-// Golf holes
+// 9-hole golf course
 const HOLES = [
   { number: 1, par: 3 },
   { number: 2, par: 4 },
@@ -54,7 +55,7 @@ const SearchBar = ({ placeholder, value, onChange, onEnter }) => (
 );
 
 export default function App() {
-  // Golf
+  // Golf state
   const [strokes, setStrokes] = useState(Array(HOLES.length).fill(0));
   const totalStrokes = strokes.reduce((a,b) => a+b, 0);
   const handleStrokeChange = (idx, value) => {
@@ -63,7 +64,7 @@ export default function App() {
     setStrokes(newStrokes);
   };
 
-  // Sports
+  // Sports state
   const [selectedSport, setSelectedSport] = useState('nhl');
   const [teamQuery, setTeamQuery] = useState('');
   const [playerQuery, setPlayerQuery] = useState('');
@@ -71,4 +72,138 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [schedule, setSchedule] = useState([]);
   const [stats, setStats] = useState([]);
- 
+  const [message, setMessage] = useState('Select a sport and run a search');
+
+  useEffect(() => {
+    setSchedule([]);
+    setStats([]);
+    setMessage('Select a sport and run a search');
+  }, [selectedSport]);
+
+  const fetchFromProxy = async (type, query) => {
+    setLoading(true);
+    try {
+      const q = query ? `&query=${encodeURIComponent(query)}` : '';
+      const resp = await fetch(`${API_BASE}?sport=${selectedSport}&type=${type}${q}`);
+      const data = await resp.json();
+      setLoading(false);
+      return data;
+    } catch (err) {
+      setLoading(false);
+      setMessage('Error contacting backend: ' + err.message);
+      return null;
+    }
+  };
+
+  const searchTeam = async () => {
+    setMessage('Searching team...');
+    const data = await fetchFromProxy('team', teamQuery);
+    if (!data) return;
+    setSchedule(data.schedule || []);
+    setStats(data.stats || []);
+    setMessage(data.ok ? 'Results loaded' : 'No results');
+  };
+
+  const searchPlayer = async () => {
+    setMessage('Searching player...');
+    const data = await fetchFromProxy('player', playerQuery);
+    if (!data) return;
+    setSchedule(data.schedule || []);
+    setStats(data.stats || []);
+    setMessage(data.ok ? 'Results loaded' : 'No results');
+  };
+
+  const searchLeague = async () => {
+    setMessage('Searching league...');
+    const data = await fetchFromProxy('league', leagueQuery || selectedSport);
+    if (!data) return;
+    setSchedule(data.schedule || []);
+    setStats(data.stats || []);
+    setMessage(data.ok ? 'Results loaded' : 'No results');
+  };
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Golf + Sports Profile</h1>
+
+      {/* Golf Section */}
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold mb-2">9-Hole Golf Game</h2>
+        <table className="w-full table-auto border-collapse mb-4">
+          <thead>
+            <tr className="bg-green-200 text-center">
+              <th className="border px-2 py-1">Hole</th>
+              <th className="border px-2 py-1">Par</th>
+              <th className="border px-2 py-1">Strokes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {HOLES.map((hole, idx) => (
+              <tr key={hole.number} className="text-center">
+                <td className="border px-2 py-1">{hole.number}</td>
+                <td className="border px-2 py-1">{hole.par}</td>
+                <td className="border px-2 py-1">
+                  <input
+                    type="number"
+                    value={strokes[idx]}
+                    min="0"
+                    onChange={e => handleStrokeChange(idx, e.target.value)}
+                    className="w-16 p-1 border rounded text-center"
+                  />
+                </td>
+              </tr>
+            ))}
+            <tr className="bg-green-100 font-bold text-center">
+              <td className="border px-2 py-1" colSpan={2}>Total Strokes</td>
+              <td className="border px-2 py-1">{totalStrokes}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      {/* Sports Section */}
+      <section>
+        <h2 className="text-xl font-semibold mb-2">Sports Search & Schedule</h2>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {SPORTS.map(s => (
+            <SportButton key={s.id} sport={s} active={s.id===selectedSport} onClick={setSelectedSport} />
+          ))}
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-3 mb-4">
+          <SearchBar placeholder="Team" value={teamQuery} onChange={setTeamQuery} onEnter={searchTeam} />
+          <SearchBar placeholder="Player" value={playerQuery} onChange={setPlayerQuery} onEnter={searchPlayer} />
+          <SearchBar placeholder="League" value={leagueQuery} onChange={setLeagueQuery} onEnter={searchLeague} />
+        </div>
+
+        <p className="text-sm text-gray-600 mb-4">{message}</p>
+
+        <h3 className="text-md font-bold">Schedule / Scoreboard</h3>
+        {loading ? (
+          <p className="animate-pulse">Loading scoreboard...</p>
+        ) : schedule.length === 0 ? (
+          <p>No schedule loaded.</p>
+        ) : (
+          <ul className="list-disc ml-5 mb-4">
+            {schedule.map((s, idx) => (
+              <li key={idx}>{s.title || s}</li>
+            ))}
+          </ul>
+        )}
+
+        <h3 className="text-md font-bold">Player / Team Stats</h3>
+        {loading ? (
+          <p className="animate-pulse">Loading stats...</p>
+        ) : stats.length === 0 ? (
+          <p>No stats loaded.</p>
+        ) : (
+          <ul className="list-disc ml-5">
+            {stats.map((p, idx) => (
+              <li key={idx}>{p.name || p}</li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
